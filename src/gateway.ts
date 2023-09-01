@@ -1,8 +1,4 @@
 
-
-import { ActionId, createArcFunction } from "./arcTypes/index";
-import { platformApplicationsInstallImplementation } from "./platformInstall";
-
 const Client = require('mozu-node-sdk/client')
 import { Payment } from '@kibocommerce/rest-sdk/clients/commerce/models/Payment'
 import { PaymentAction } from '@kibocommerce/rest-sdk/clients/commerce/models/PaymentAction'

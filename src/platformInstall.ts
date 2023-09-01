@@ -119,7 +119,7 @@ export const platformApplicationsInstallImplementation = async (context: any, ca
           paymentAfterActionContext
         ]
       })
-    } else if (paymentAfterAction.contexts?.some(c => c.customFunctions?.some(f => f.applicationKey == context.apiContext.appKey))) {
+    } else if (!paymentAfterAction.contexts?.some(c => c.customFunctions?.some(f => f.applicationKey == context.apiContext.appKey))) {
       paymentAfterAction.contexts?.push(paymentAfterActionContext)
     }
 
@@ -142,7 +142,7 @@ export const platformApplicationsInstallImplementation = async (context: any, ca
           paymentBeforeContext
         ]
       })
-    } else if (paymentBeforeAction.contexts?.some(c => c.customFunctions?.some(f => f.applicationKey == context.apiContext.appKey))) {
+    } else if (!paymentBeforeAction.contexts?.some(c => c.customFunctions?.some(f => f.applicationKey == context.apiContext.appKey))) {
       paymentBeforeAction.contexts?.push(paymentBeforeContext)
     }
 
@@ -165,7 +165,7 @@ export const platformApplicationsInstallImplementation = async (context: any, ca
           performPatyInteractionContext
         ]
       })
-    } else if (paymentInteractionAction.contexts?.some(c => c.customFunctions?.some(f => f.applicationKey == context.apiContext.appKey))) {
+    } else if (!paymentInteractionAction.contexts?.some(c => c.customFunctions?.some(f => f.applicationKey == context.apiContext.appKey))) {
       paymentInteractionAction.contexts?.push(performPatyInteractionContext)
     }
 
