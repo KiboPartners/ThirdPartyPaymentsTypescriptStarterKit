@@ -1,24 +1,19 @@
 {
   "exports": [
     {
-      "id": "embedded.commerce.return.retrieveReasons",
+      "id": "embedded.commerce.payments.action.after",
       "virtualPath": "./dist/manifest.all.js",
-      "actionId": "embedded.commerce.return.retrieveReasons"
+      "actionId": "embedded.commerce.payments.action.after"
     },
     {
-      "id": "http.commerce.orders.cancellationReasons.after",
+      "id": "embedded.commerce.payments.action.before",
       "virtualPath": "./dist/manifest.all.js",
-      "actionId": "http.commerce.orders.cancellationReasons.after"
+      "actionId": "embedded.commerce.payments.action.before"
     },
     {
-      "id": "http.commerce.subscriptions.reasons.after",
+      "id": "embedded.commerce.payments.action.performPaymentInteraction",
       "virtualPath": "./dist/manifest.all.js",
-      "actionId": "http.commerce.subscriptions.reasons.after"
-    },
-    {
-      "id": "http.commerce.orders.refundReasons.after",
-      "virtualPath": "./dist/manifest.all.js",
-      "actionId": "http.commerce.orders.refundReasons.after"
+      "actionId": "embedded.commerce.payments.action.performPaymentInteraction"
     },
     {
       "id": "embedded.platform.applications.install",

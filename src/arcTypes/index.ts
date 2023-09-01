@@ -1,12 +1,32 @@
 /**
- * List of allo Action Ids supported in Kibo
+ * Modify this list if you need more actions
  */
 export enum ActionId {
-  "embedded.commerce.return.retrieveReasons",
-  "http.commerce.orders.cancellationReasons.after",
-  "http.commerce.subscriptions.reasons.after",
-  "http.commerce.orders.refundReasons.after",
+  "embedded.commerce.payments.action.after",
+  "embedded.commerce.payments.action.before",
+  "embedded.commerce.payments.action.performPaymentInteraction",
   "embedded.platform.applications.install",
+}
+
+import { Payment } from '@kibocommerce/rest-sdk/clients/commerce/models/Payment'
+import { PaymentAction } from '@kibocommerce/rest-sdk/clients/commerce/models/PaymentAction'
+import { PaymentInteraction } from '@kibocommerce/rest-sdk/clients/commerce/models/PaymentInteraction'
+
+export type PerformPaymentInteractionContext = {
+  get: {
+    payment: () => Payment,
+    paymentAction: () => PaymentAction,
+  },
+  exec: {
+    addPaymentInteraction: (interaction: PaymentInteraction) => null,
+    setPaymentAmountRequested: (amountRequested: number) => any,
+    setPaymentAmountCollected: (amountCollected: number) => any,
+    setPaymentAmountCredited: (amountCredited: number) => any,
+    isForOrder: () => boolean,
+    isForReturn: () => boolean,
+    isForCheckout: () => boolean,
+    setAuthorized: (isAuthorized: boolean) => any,
+  }
 }
 
 export interface ArcFunction {

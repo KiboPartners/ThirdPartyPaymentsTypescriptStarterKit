@@ -1,9 +1,7 @@
 import { ActionId } from "./arcTypes/index";
 
-import { ReasonCollection } from '@kibocommerce/rest-sdk/clients/Commerce/models/ReasonCollection'
-import { RefundReasonCollection } from '@kibocommerce/rest-sdk/clients/Commerce/models/RefundReasonCollection'
-import { CancelReasonCollection } from '@kibocommerce/rest-sdk/clients/Commerce/models/CancelReasonCollection'
-import { SubscriptionReasonCollection } from '@kibocommerce/rest-sdk/clients//Subscription/models/SubscriptionReasonCollection'
+import { ExternalPaymentWorkflowDefinition } from '@kibocommerce/rest-sdk/clients/Settings/models/ExternalPaymentWorkflowDefinition'
+import { credentials, WORKFLOW_NAME, WORKFLOW_DESCRIPTION } from "./credentialDefinition";
 
 const Client = require('mozu-node-sdk/client')
 
@@ -36,29 +34,30 @@ const myClientFactory = Client.sub({
     method: constants.verbs.PUT,
     url: '{+tenantPod}api/platform/extensions'
   }),
-  getOrderCancelReasons: Client.method({
+  getThirdPartyWorkflow: Client.method({
     method: constants.verbs.GET,
-    url: '{+tenantPod}api/commerce/orders/cancel/reasons'
+    url: '{+tenantPod}api/commerce/settings/checkout/paymentsettings/thirdpartyworkflows/{fullyQualifiedName}'
   }),
-  getRefundReasons: Client.method({
+  getThirdPartyWorkflows: Client.method({
     method: constants.verbs.GET,
-    url: '{+tenantPod}api/commerce/orders/refunds/refundreasons'
+    url: '{+tenantPod}api/commerce/settings/checkout/paymentsettings/thirdpartyworkflows'
   }),
-  getReturnReasons: Client.method({
-    method: constants.verbs.GET,
-    url: '{+tenantPod}api/commerce/returns/reasons'
+  deleteThirdPartyWorkflow: Client.method({
+    method: constants.verbs.DELETE,
+    url: '{+tenantPod}api/commerce/settings/checkout/paymentsettings/thirdpartyworkflows/{fullyQualifiedName}'
   }),
-  getSubscriptionReasons: Client.method({
-    method: constants.verbs.GET,
-    url: '{+tenantPod}api/commerce/subscriptions/reasons'
+  addThirdPartyWorkflow: Client.method({
+    method: constants.verbs.PUT,
+    url: '{+tenantPod}api/commerce/settings/checkout/paymentsettings/thirdpartyworkflows/'
   }),
 }) as (context: any) => {
   getArcConfig: () => Promise<ArcJSConfig>,
-  setArcConfig: (_: any, payload: { body: ArcJSConfig}) => any,
-  getOrderCancelReasons: () => Promise<CancelReasonCollection>,
-  getRefundReasons: () => Promise<RefundReasonCollection>,
-  getReturnReasons: () => Promise<ReasonCollection>,
-  getSubscriptionReasons: () => Promise<SubscriptionReasonCollection>
+  setArcConfig: (_: any, payload: { body: ArcJSConfig }) => any,
+  getThirdPartyWorkflows: () => Promise<Array<ExternalPaymentWorkflowDefinition>>,
+  getThirdPartyWorkflow: () => Promise<ExternalPaymentWorkflowDefinition>,
+  deleteThirdPartyWorkflow: (params: { fullyQualifiedName: string }) => Promise<null>,
+  addThirdPartyWorkflow: (_: any, payload: { body: ExternalPaymentWorkflowDefinition }) => any,
+  context: any,
 };
 
 /**
@@ -71,128 +70,109 @@ export const platformApplicationsInstallImplementation = async (context: any, ca
 
   const myClient = myClientFactory(context)
 
+  const arcConfig = await myClient.getArcConfig()
+
   try {
-    const arcConfig = await myClient.getArcConfig()
 
-    // First, return reasons
-    const RETRIEVE_REASONS_ACTION = ActionId[ActionId["embedded.commerce.return.retrieveReasons"]]
-    const returnReasonsAction = arcConfig.actions?.find(a => a.actionId == RETRIEVE_REASONS_ACTION)
-    if (!returnReasonsAction) {
-      try {
-        const returnReasons = await myClient.getReturnReasons()
-
-        arcConfig.actions?.push({
-          actionId: RETRIEVE_REASONS_ACTION,
-          "contexts": [
-            {
-              "customFunctions": [
-                {
-                  applicationKey: context.apiContext.appKey,
-                  functionId: RETRIEVE_REASONS_ACTION,
-                  enabled: true,
-                  configuration: {
-                    items: returnReasons.items
-                  }
-                }
-              ]
-            }
-          ]
-        })
-      } catch (error) {
-        console.error("Error getting return reasons", error)
+    for (const site of context.get.tenant().sites) {
+      myClient.context[constants.headers.SITE] = site.id;
+      const workflows = await myClient.getThirdPartyWorkflows()
+      const fqn = "tenant~" + WORKFLOW_NAME
+      const existingWorkflow = workflows.find(workflow => workflow.fullyQualifiedName == fqn)
+      if (existingWorkflow) {
+        // Replace the workflow if it has changed. These is no Update API
+        await myClient.deleteThirdPartyWorkflow({ fullyQualifiedName: fqn })
       }
+
+      await myClient.addThirdPartyWorkflow({}, {
+        body: {
+          name: WORKFLOW_NAME,
+          namespace: "tenant",
+          description: WORKFLOW_DESCRIPTION,
+          fullyQualifiedName: fqn,
+          isEnabled: false,
+          isLegacy: true,
+          credentials: credentials
+        }
+      })
+      console.log("Workflow added")
+
     }
 
-    // Next, Order Cancellation Reasons
-    const ORDER_CANCELLATION_REASONS_ACTION = ActionId[ActionId["http.commerce.orders.cancellationReasons.after"]]
-    const cancellationReasonsAction = arcConfig.actions?.find(a => a.actionId == ORDER_CANCELLATION_REASONS_ACTION)
-    if (!cancellationReasonsAction) {
-      try {
-        const cancellationReasons = await myClient.getOrderCancelReasons()
 
-        arcConfig.actions?.push({
-          actionId: ORDER_CANCELLATION_REASONS_ACTION,
-          "contexts": [
-            {
-              "customFunctions": [
-                {
-                  applicationKey: context.apiContext.appKey,
-                  functionId: ORDER_CANCELLATION_REASONS_ACTION,
-                  enabled: true,
-                  configuration: {
-                    items: cancellationReasons.items
-                  }
-                }
-              ]
-            }
-          ]
-        })
-      } catch (error) {
-        console.error("Error getting order cancellation reasons", error)
-      }
+    // Payment after action
+    const PAYMENT_AFTER_ACTION = ActionId[ActionId["embedded.commerce.payments.action.after"]]
+    const paymentAfterActionContext: any = {
+      "customFunctions": [
+        {
+          applicationKey: context.apiContext.appKey,
+          functionId: PAYMENT_AFTER_ACTION,
+          enabled: true
+        }
+      ]
+    }
+    const paymentAfterAction = arcConfig.actions?.find(a => a.actionId == PAYMENT_AFTER_ACTION)
+    if (!paymentAfterAction) {
+      arcConfig.actions?.push({
+        actionId: PAYMENT_AFTER_ACTION,
+        "contexts": [
+          paymentAfterActionContext
+        ]
+      })
+    } else if (paymentAfterAction.contexts?.some(c => c.customFunctions?.some(f => f.applicationKey == context.apiContext.appKey))) {
+      paymentAfterAction.contexts?.push(paymentAfterActionContext)
     }
 
-    // Next, Refund Reasons
-    const REFUND_REASONS_ACTION = ActionId[ActionId["http.commerce.orders.refundReasons.after"]]
-    const refundReasonsAction = arcConfig.actions?.find(a => a.actionId == REFUND_REASONS_ACTION)
-    if (!refundReasonsAction) {
-      try {
-        const refundReasons = await myClient.getRefundReasons()
-
-        arcConfig.actions?.push({
-          actionId: REFUND_REASONS_ACTION,
-          "contexts": [
-            {
-              "customFunctions": [
-                {
-                  applicationKey: context.apiContext.appKey,
-                  functionId: REFUND_REASONS_ACTION,
-                  enabled: true,
-                  configuration: {
-                    items: refundReasons.items
-                  }
-                }
-              ]
-            }
-          ]
-        })
-      } catch (error) {
-        console.error("Error getting order cancellation reasons", error)
-      }
+    // Payment before action
+    const PAYMENT_BEFORE_ACTION = ActionId[ActionId["embedded.commerce.payments.action.before"]]
+    const paymentBeforeContext: any = {
+      "customFunctions": [
+        {
+          applicationKey: context.apiContext.appKey,
+          functionId: PAYMENT_BEFORE_ACTION,
+          enabled: true
+        }
+      ]
+    }
+    const paymentBeforeAction = arcConfig.actions?.find(a => a.actionId == PAYMENT_BEFORE_ACTION)
+    if (!paymentBeforeAction) {
+      arcConfig.actions?.push({
+        actionId: PAYMENT_BEFORE_ACTION,
+        "contexts": [
+          paymentBeforeContext
+        ]
+      })
+    } else if (paymentBeforeAction.contexts?.some(c => c.customFunctions?.some(f => f.applicationKey == context.apiContext.appKey))) {
+      paymentBeforeAction.contexts?.push(paymentBeforeContext)
     }
 
-    // Finally, Subscription Reasons
-    const SUBSCRIPTION_REASONS_ACTION = ActionId[ActionId["http.commerce.subscriptions.reasons.after"]]
-    const subscriptionsAction = arcConfig.actions?.find(a => a.actionId == SUBSCRIPTION_REASONS_ACTION)
-    if (!subscriptionsAction) {
-      try {
-        const subscriptionReasons = await myClient.getSubscriptionReasons()
-
-        arcConfig.actions?.push({
-          actionId: SUBSCRIPTION_REASONS_ACTION,
-          "contexts": [
-            {
-              "customFunctions": [
-                {
-                  applicationKey: context.apiContext.appKey,
-                  functionId: SUBSCRIPTION_REASONS_ACTION,
-                  enabled: true,
-                  configuration: {
-                    items: subscriptionReasons.items
-                  }
-                }
-              ]
-            }
-          ]
-        })
-      } catch (error) {
-        console.error("Error getting order cancellation reasons", error)
-      }
+    // Payment interaction action
+    const PERFORM_PAYMENT_INTERACTION_ACTION = ActionId[ActionId["embedded.commerce.payments.action.performPaymentInteraction"]]
+    const performPatyInteractionContext: any = {
+      "customFunctions": [
+        {
+          applicationKey: context.apiContext.appKey,
+          functionId: PERFORM_PAYMENT_INTERACTION_ACTION,
+          enabled: true
+        }
+      ]
+    }
+    const paymentInteractionAction = arcConfig.actions?.find(a => a.actionId == PERFORM_PAYMENT_INTERACTION_ACTION)
+    if (!paymentInteractionAction) {
+      arcConfig.actions?.push({
+        actionId: PERFORM_PAYMENT_INTERACTION_ACTION,
+        "contexts": [
+          performPatyInteractionContext
+        ]
+      })
+    } else if (paymentInteractionAction.contexts?.some(c => c.customFunctions?.some(f => f.applicationKey == context.apiContext.appKey))) {
+      paymentInteractionAction.contexts?.push(performPatyInteractionContext)
     }
 
     // Now we are all done, update the Arc config
-    await myClient.setArcConfig({}, {body: arcConfig})
-  } catch {
+    await myClient.setArcConfig({}, { body: arcConfig })
+  } catch (err) {
     callback("There was an error installing.")
+    //console.error(err)
   }
 }
