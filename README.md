@@ -8,7 +8,7 @@ Note that there is no admin support for adding 3rd party payments. They must be 
 
 ## Getting Started
 
-The starter kit contains a NoOp payment gateway, that will always accept the payments. You will need to modify it to call your third-party service. 
+The starter kit contains a NoOp payment gateway, that will always accept the payments. You will need to modify it to call gateway service. 
 
 You will need to first upload the code to a new application, modify the code to your needs, install, and then test.
 
@@ -26,7 +26,7 @@ First, go to `src/credentialDefinition.ts` and give your payment workflow a uniq
 
 Then you can begin the implementation. You should be able to just modify `src/gateway.ts`. This class contains the methods which Kibo defines payment actions on. 
 
-If you want another reference, you can use the (Pay Pal Express 2)[https://github.com/Mozu/PayPal-Express] code. The TypeScript types here should make the development much easier than using the PayPal as a base though.
+If you want another reference, you can use the [PayPal Express 2](https://github.com/Mozu/PayPal-Express) code. The TypeScript types here should make the development much easier than using the PayPal as a base though.
 
 ## Create Payment Action Payloads
 
