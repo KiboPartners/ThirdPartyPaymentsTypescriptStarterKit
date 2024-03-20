@@ -61,6 +61,10 @@ Example Create Payment Action payload:
     },
     "isSameBillingShippingAddress": true,
     "isRecurring": false
+  },
+  "data": {
+    "my_custom_field": "12345",
+    "my_custom_field2": "54321"
   }
 }
 ```
